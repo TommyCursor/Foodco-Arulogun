@@ -1,0 +1,127 @@
+:root {
+  --brand-green:    #2E7D32;
+  --brand-green-light: #4CAF50;
+  --brand-green-bg: #E8F5E9;
+  --brand-yellow:   #FFC107;
+  --brand-yellow-bg: #FFF8E1;
+  --brand-white:    #FFFFFF;
+  --gray-bg:        #F5F5F5;
+  --text-dark:      #333333;
+  --alert-critical: #D32F2F;
+  --alert-critical-bg: #FFEBEE;
+}
+
+* {
+  box-sizing: border-box;
+  padding: 0;
+  margin: 0;
+}
+
+html,
+body {
+  max-width: 100vw;
+  overflow-x: hidden;
+  font-family: 'Open Sans', 'Segoe UI', system-ui, sans-serif;
+  background-color: var(--gray-bg);
+  color: var(--text-dark);
+}
+
+/* Ant Design layout override */
+.ant-layout {
+  background: var(--gray-bg) !important;
+}
+
+/* Stat card styles */
+.kpi-card {
+  background: var(--brand-white);
+  border-radius: 8px;
+  padding: 20px 24px;
+  border: 1px solid #e8e8e8;
+  transition: box-shadow 0.2s;
+}
+
+@media (max-width: 575px) {
+  .kpi-card {
+    padding: 14px 16px;
+  }
+}
+
+.kpi-card:hover {
+  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+}
+
+.kpi-card.warning {
+  border-left: 4px solid var(--brand-yellow);
+}
+
+.kpi-card.success {
+  border-left: 4px solid var(--brand-green);
+}
+
+.kpi-card.critical {
+  border-left: 4px solid var(--alert-critical);
+}
+
+/* AI suggestion banner */
+.ai-banner {
+  background: linear-gradient(135deg, var(--brand-green-bg), var(--brand-yellow-bg));
+  border: 1px solid var(--brand-yellow);
+  border-radius: 8px;
+  padding: 16px 20px;
+}
+
+/* Expiry badge colors */
+.badge-critical  { color: var(--alert-critical);  background: var(--alert-critical-bg);  padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.badge-warning   { color: #856404;                background: var(--brand-yellow-bg);     padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+.badge-safe      { color: var(--brand-green);     background: var(--brand-green-bg);     padding: 2px 8px; border-radius: 4px; font-size: 12px; }
+
+/* ── Mobile overrides ─────────────────────────────────────── */
+@media (max-width: 575px) {
+  /* Constrain all Ant Design modals to screen width */
+  .ant-modal {
+    max-width: calc(100vw - 32px) !important;
+    margin: 16px auto !important;
+  }
+  .ant-modal-content {
+    border-radius: 12px !important;
+  }
+
+  /* Full-width drawers on mobile */
+  .ant-drawer-content-wrapper {
+    width: 100% !important;
+    max-width: 100vw !important;
+  }
+
+  /* Prevent horizontal overflow in pages */
+  .ant-card-body {
+    padding: 12px 14px !important;
+  }
+
+  /* Table pagination compact on mobile */
+  .ant-pagination {
+    flex-wrap: wrap;
+    gap: 4px;
+  }
+
+  /* Popover / tooltip full-width friendly */
+  .ant-select-dropdown {
+    max-width: calc(100vw - 32px);
+  }
+
+  /* DatePicker range panel — constrain and allow horizontal scroll on mobile.
+     The default panel is ~540px (two months side-by-side) which overflows. */
+  .ant-picker-dropdown {
+    left: 8px !important;
+    max-width: calc(100vw - 16px) !important;
+  }
+  .ant-picker-panel-container {
+    max-width: calc(100vw - 16px) !important;
+    overflow-x: auto !important;
+  }
+}
+
+/* ── Scrollbar ─────────────────────────────────────────────── */
+::-webkit-scrollbar       { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: var(--gray-bg); }
+::-webkit-scrollbar-thumb { background: #ccc; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #aaa; }
