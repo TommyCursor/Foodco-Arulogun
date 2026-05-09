@@ -11,8 +11,9 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   PlusOutlined, SearchOutlined, CheckOutlined, CloseOutlined,
   WarningOutlined, ReloadOutlined, ExclamationCircleOutlined,
-  CheckCircleOutlined, DeleteOutlined, EyeOutlined,
+  CheckCircleOutlined, DeleteOutlined, EyeOutlined, ScanOutlined,
 } from '@ant-design/icons'
+import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { BRAND, STORE_CATEGORIES } from '@/lib/constants'
@@ -73,6 +74,8 @@ export default function DamageClient({ records }: Props) {
   const [batchSku,    setBatchSku]          = useState('')
   const [batchPrice,  setBatchPrice]        = useState(0)
   const [savedReasons, setSavedReasons]     = useState<string[]>([])
+  const [scanOpen,    setScanOpen]          = useState(false)
+  const [scanSubmitting, setScanSubmitting] = useState(false)
 
   useEffect(() => {
     try {
@@ -126,6 +129,50 @@ export default function DamageClient({ records }: Props) {
 
   function onQtyChange(qty: number | null) {
     form.setFieldValue('estimated_value_lost', (qty ?? 0) * batchPrice)
+  }
+
+  // ── Batch submit from notebook scan ──
+  async function handleScanConfirm(rows: ScanRow[]) {
+    setScanSubmitting(true)
+    let success = 0
+    let failed  = 0
+    for (const row of rows) {
+      try {
+        const qty   = row.quantity
+        const price = row.price
+        const res   = await fetch('/api/damage', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            description:          row.description,
+            barcode:              null,
+            quantity_damaged:     qty,
+            unit_price:           price,
+            estimated_value_lost: qty * price,
+            reason:               row.reason || 'Other',
+            category:             null,
+            notes:                row.notes || '',
+          }),
+        })
+        if (!res.ok) failed++
+        else { success++; saveNewReason(row.reason) }
+      } catch {
+        failed++
+      }
+    }
+    setScanSubmitting(false)
+    if (success > 0) {
+      notification.success({
+        message:     `${success} record${success !== 1 ? 's' : ''} submitted`,
+        description: failed > 0 ? `${failed} record${failed !== 1 ? 's' : ''} failed to submit.` : 'All damage records logged successfully.',
+        placement:   'topRight',
+        duration:    3,
+        icon:        <CheckCircleOutlined style={{ color: BRAND.green }} />,
+        onClose:     () => router.refresh(),
+      })
+    } else {
+      Modal.error({ title: 'Submission failed', content: 'None of the records could be submitted. Please try again.' })
+    }
   }
 
   // ── Submit new damage record ──
@@ -417,14 +464,23 @@ export default function DamageClient({ records }: Props) {
           <Title level={5} style={{ margin: 0, color: BRAND.green }}>
             Damage Records
           </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => { form.resetFields(); form.setFieldValue('estimated_value_lost', 0); setDrawerOpen(true) }}
-            style={{ background: BRAND.green }}
-          >
-            Report Damage
-          </Button>
+          <Space>
+            <Button
+              icon={<ScanOutlined />}
+              onClick={() => setScanOpen(true)}
+              loading={scanSubmitting}
+            >
+              Scan Notebook
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => { form.resetFields(); form.setFieldValue('estimated_value_lost', 0); setDrawerOpen(true) }}
+              style={{ background: BRAND.green }}
+            >
+              Report Damage
+            </Button>
+          </Space>
         </div>
 
         <Row gutter={[12, 12]} align="middle">
@@ -627,6 +683,14 @@ export default function DamageClient({ records }: Props) {
           </Form.Item>
         </Form>
       </Drawer>
+
+      {/* ── Notebook Scan Modal ── */}
+      <NotebookScanModal
+        open={scanOpen}
+        section="damage"
+        onClose={() => setScanOpen(false)}
+        onConfirm={handleScanConfirm}
+      />
 
       {/* ── Detail Modal ── */}
       <Modal

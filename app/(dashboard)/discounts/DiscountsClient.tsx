@@ -13,11 +13,12 @@ import {
   PlusOutlined, SearchOutlined, TagOutlined, ThunderboltOutlined,
   ReloadOutlined, RiseOutlined,
   ExclamationCircleOutlined, InfoCircleOutlined, CheckCircleOutlined,
-  DeleteOutlined,
+  DeleteOutlined, ScanOutlined,
 } from '@ant-design/icons'
 import dayjs from 'dayjs'
 import { BRAND, DISCOUNT, EXPIRY, STORE_CATEGORIES } from '@/lib/constants'
 import type { Discount, InventoryItem } from '@/types'
+import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -142,13 +143,15 @@ export default function DiscountsClient({ discounts, eligibleBatches }: Props) {
   const [search,        setSearch]          = useState('')
   const [filterStatus,  setFilterStatus]    = useState<string>('active')
   const [filterType,    setFilterType]      = useState<string>('all')
-  const [drawerOpen,    setDrawerOpen]      = useState(false)
-  const [submitting,    setSubmitting]      = useState(false)
-  const [form]                              = Form.useForm()
-  const [batchSku,      setBatchSku]        = useState('')
-  const [batchQty,      setBatchQty]        = useState<number | null>(null)
-  const [batchPrice,    setBatchPrice]      = useState<number | null>(null)
+  const [drawerOpen,      setDrawerOpen]      = useState(false)
+  const [submitting,      setSubmitting]      = useState(false)
+  const [form]                                = Form.useForm()
+  const [batchSku,        setBatchSku]        = useState('')
+  const [batchQty,        setBatchQty]        = useState<number | null>(null)
+  const [batchPrice,      setBatchPrice]      = useState<number | null>(null)
   const [savedConditions, setSavedConditions] = useState<string[]>([])
+  const [scanOpen,        setScanOpen]        = useState(false)
+  const [scanSubmitting,  setScanSubmitting]  = useState(false)
 
   useEffect(() => {
     try {
@@ -211,6 +214,46 @@ export default function DiscountsClient({ discounts, eligibleBatches }: Props) {
       name:        `AI Flash — ${batch.product?.name} (${pct}% off)`,
     })
     setDrawerOpen(true)
+  }
+
+  // ── Batch submit from notebook scan ──
+  async function handleScanConfirm(rows: ScanRow[]) {
+    setScanSubmitting(true)
+    let success = 0
+    let failed  = 0
+    for (const row of rows) {
+      try {
+        const res = await fetch('/api/discounts', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            description:    row.description,
+            barcode:        null,
+            qty:            row.quantity,
+            name:           row.name || 'Manual Discount',
+            original_price: row.original_price,
+            category:       null,
+          }),
+        })
+        if (!res.ok) failed++
+        else success++
+      } catch {
+        failed++
+      }
+    }
+    setScanSubmitting(false)
+    if (success > 0) {
+      notification.success({
+        message:     `${success} record${success !== 1 ? 's' : ''} submitted`,
+        description: failed > 0 ? `${failed} record${failed !== 1 ? 's' : ''} failed to submit.` : 'All discount records logged successfully.',
+        placement:   'topRight',
+        duration:    3,
+        icon:        <CheckCircleOutlined style={{ color: BRAND.green }} />,
+        onClose:     () => router.refresh(),
+      })
+    } else {
+      Modal.error({ title: 'Submission failed', content: 'None of the records could be submitted. Please try again.' })
+    }
   }
 
   // ── Submit ──
@@ -518,14 +561,23 @@ export default function DiscountsClient({ discounts, eligibleBatches }: Props) {
           <Title level={5} style={{ margin: 0, color: BRAND.green }}>
             Discount Records
           </Title>
-          <Button
-            type="primary"
-            icon={<PlusOutlined />}
-            onClick={() => { resetDrawer(); setDrawerOpen(true) }}
-            style={{ background: BRAND.green }}
-          >
-            Report Discount
-          </Button>
+          <Space>
+            <Button
+              icon={<ScanOutlined />}
+              onClick={() => setScanOpen(true)}
+              loading={scanSubmitting}
+            >
+              Scan Notebook
+            </Button>
+            <Button
+              type="primary"
+              icon={<PlusOutlined />}
+              onClick={() => { resetDrawer(); setDrawerOpen(true) }}
+              style={{ background: BRAND.green }}
+            >
+              Report Discount
+            </Button>
+          </Space>
         </div>
 
         <Row gutter={[12, 12]} align="middle">
@@ -603,6 +655,14 @@ export default function DiscountsClient({ discounts, eligibleBatches }: Props) {
           />
         )}
       </Card>
+
+      {/* ── Notebook Scan Modal ── */}
+      <NotebookScanModal
+        open={scanOpen}
+        section="discount"
+        onClose={() => setScanOpen(false)}
+        onConfirm={handleScanConfirm}
+      />
 
       {/* ── Create Discount Drawer ── */}
       <Drawer

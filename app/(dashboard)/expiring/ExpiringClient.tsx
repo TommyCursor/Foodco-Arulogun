@@ -11,8 +11,9 @@ import type { ColumnsType } from 'antd/es/table'
 import {
   SearchOutlined, ReloadOutlined, WarningOutlined,
   ClockCircleOutlined, FireOutlined, PlusOutlined, CheckCircleOutlined,
-  DeleteOutlined, BellOutlined,
+  DeleteOutlined, BellOutlined, ScanOutlined,
 } from '@ant-design/icons'
+import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
 import dayjs from 'dayjs'
 import { BRAND, STORE_CATEGORIES } from '@/lib/constants'
 import type { InventoryItem } from '@/types'
@@ -82,9 +83,11 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
   const [submitting,  setSubmitting]  = useState(false)
   const [deleting,    setDeleting]    = useState<string | null>(null)
   const [form]                        = Form.useForm()
-  const [batchSku,    setBatchSku]    = useState('')
-  const [batchQty,    setBatchQty]    = useState<number | null>(null)
-  const [batchPrice,  setBatchPrice]  = useState<number | null>(null)
+  const [batchSku,       setBatchSku]       = useState('')
+  const [batchQty,       setBatchQty]       = useState<number | null>(null)
+  const [batchPrice,     setBatchPrice]     = useState<number | null>(null)
+  const [scanOpen,       setScanOpen]       = useState(false)
+  const [scanSubmitting, setScanSubmitting] = useState(false)
 
   const batchAmount = (batchQty ?? 0) * (batchPrice ?? 0)
 
@@ -139,6 +142,51 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
       notification.error({ message: 'Delete failed', description: 'Network error — try again.', placement: 'topRight', duration: 4 })
     } finally {
       setDeleting(null)
+    }
+  }
+
+  // ── Batch submit from notebook scan ──
+  async function handleScanConfirm(rows: ScanRow[]) {
+    setScanSubmitting(true)
+    let success = 0
+    let failed  = 0
+    for (const row of rows) {
+      try {
+        const qty   = row.quantity
+        const price = row.price
+        const res   = await fetch('/api/damage', {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            description:          row.description,
+            barcode:              null,
+            quantity_damaged:     qty,
+            unit_price:           price,
+            estimated_value_lost: qty * price,
+            reason:               'About to Expire',
+            expiry_date:          row.expiry_date || null,
+            category:             null,
+            notes:                row.notes || '',
+          }),
+        })
+        if (!res.ok) failed++
+        else success++
+      } catch {
+        failed++
+      }
+    }
+    setScanSubmitting(false)
+    if (success > 0) {
+      notification.success({
+        message:     `${success} record${success !== 1 ? 's' : ''} submitted`,
+        description: failed > 0 ? `${failed} record${failed !== 1 ? 's' : ''} failed to submit.` : 'All expiry reports logged successfully.',
+        placement:   'topRight',
+        duration:    3,
+        icon:        <CheckCircleOutlined style={{ color: BRAND.green }} />,
+        onClose:     () => router.refresh(),
+      })
+    } else {
+      Modal.error({ title: 'Submission failed', content: 'None of the records could be submitted. Please try again.' })
     }
   }
 
@@ -412,6 +460,13 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
               Refresh
             </Button>
             <Button
+              icon={<ScanOutlined />}
+              onClick={() => setScanOpen(true)}
+              loading={scanSubmitting}
+            >
+              Scan Notebook
+            </Button>
+            <Button
               type="primary"
               icon={<PlusOutlined />}
               onClick={() => { resetForm(); setDrawerOpen(true) }}
@@ -508,6 +563,14 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
           />
         )}
       </Card>
+
+      {/* ── Notebook Scan Modal ── */}
+      <NotebookScanModal
+        open={scanOpen}
+        section="expiring"
+        onClose={() => setScanOpen(false)}
+        onConfirm={handleScanConfirm}
+      />
 
       {/* ── Report About to Expire Drawer ── */}
       <Drawer
