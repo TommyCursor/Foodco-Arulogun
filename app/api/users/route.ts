@@ -42,7 +42,11 @@ export async function POST(req: NextRequest) {
   }
 
   if (upsertError) {
-    console.error('Profile upsert failed after retries:', upsertError.message)
+    console.error('[users/invite] Profile upsert failed after retries:', upsertError.message)
+    return NextResponse.json(
+      { error: 'User invited but profile setup failed — please contact support or retry.' },
+      { status: 500 }
+    )
   }
 
   logAudit({

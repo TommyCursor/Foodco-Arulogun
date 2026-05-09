@@ -13,9 +13,18 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   const { id } = await params
   const body = await req.json()
 
+  // Whitelist patchable fields — prevents clients from overwriting protected columns
+  const ALLOWED: (keyof typeof body)[] = [
+    'quantity', 'selling_price', 'location', 'batch_number',
+    'expiry_date', 'pipeline_stage', 'status', 'notes', 'category_id',
+  ]
+  const patch = Object.fromEntries(
+    Object.entries(body).filter(([k]) => ALLOWED.includes(k as keyof typeof body))
+  )
+
   const { data, error } = await supabase
     .from('inventory_items')
-    .update(body)
+    .update(patch)
     .eq('id', id)
     .select()
     .single()

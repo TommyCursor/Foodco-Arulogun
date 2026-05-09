@@ -229,7 +229,7 @@ export async function POST(req: NextRequest) {
       loggedBy:        reporter?.full_name ?? 'Unknown',
       dateTime:        new Date().toISOString(),
     })
-    sendEmail({ to: recipients, subject, html }).catch(() => {})
+    sendEmail({ to: recipients, subject, html }).catch(err => console.error('[damage/email]', err))
   })
 
   return NextResponse.json(data, { status: 201 })

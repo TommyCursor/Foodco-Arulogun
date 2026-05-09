@@ -66,6 +66,9 @@ export async function POST(req: NextRequest) {
     if (!image || !mimeType || !section) {
       return NextResponse.json({ error: 'image, mimeType, and section are required' }, { status: 400 })
     }
+    if (!['damage', 'expiring', 'discount'].includes(section)) {
+      return NextResponse.json({ error: 'section must be damage, expiring, or discount' }, { status: 400 })
+    }
 
     const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
     const response = await groq.chat.completions.create({

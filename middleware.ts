@@ -23,13 +23,22 @@ export async function middleware(request: NextRequest) {
     }
   )
 
-  // Refresh session if expired
-  const { data: { user } } = await supabase.auth.getUser()
-
   const { pathname } = request.nextUrl
 
   const publicPaths = ['/login', '/forgot-password', '/reset-password', '/auth', '/api/cron']
   const isPublic = publicPaths.some(p => pathname.startsWith(p))
+
+  // Refresh session — if Supabase is unreachable, treat as unauthenticated
+  let user = null
+  try {
+    const { data } = await supabase.auth.getUser()
+    user = data.user
+  } catch {
+    if (!isPublic) {
+      return NextResponse.redirect(new URL('/login', request.url))
+    }
+    return supabaseResponse
+  }
 
   // Redirect unauthenticated users to login
   if (!user && !isPublic) {

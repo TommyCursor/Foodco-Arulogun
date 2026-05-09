@@ -136,7 +136,8 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
       })
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Analysis failed')
-      const extracted = (data.records as Record<string, unknown>[]).map(r => apiRowToScanRow(r, section))
+      const raw = Array.isArray(data.records) ? data.records as Record<string, unknown>[] : []
+      const extracted = raw.map(r => apiRowToScanRow(r, section))
       setRows(extracted.length ? extracted : [makeBlankRow(section)])
       setStep('verify')
     } catch (e: unknown) {
