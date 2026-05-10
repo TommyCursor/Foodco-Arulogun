@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Table, Tag, Button, Space, Input, Select, AutoComplete, Typography,
   Drawer, Form, InputNumber, Card, Statistic, Row, Col,
-  Tooltip, Modal, Badge, Timeline, Empty, Alert, App, Popconfirm,
+  Tooltip, Modal, Badge, Timeline, Empty, Alert, App, Popconfirm, Grid,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -26,6 +26,7 @@ dayjs.extend(relativeTime)
 const { Title, Text } = Typography
 const { Option } = Select
 const { confirm } = Modal
+const { useBreakpoint } = Grid
 
 const DAMAGE_REASONS_LS = 'damage_reasons_list'
 
@@ -66,6 +67,8 @@ function StatusTag({ status }: { status: DamageRecord['status'] }) {
 export default function DamageClient({ records }: Props) {
   const router                              = useRouter()
   const { notification }                    = App.useApp()
+  const screens                             = useBreakpoint()
+  const isMobile                            = !screens.md
   const [search,      setSearch]            = useState('')
   const [filterStatus, setFilterStatus]     = useState<string>('all')
   const [drawerOpen,  setDrawerOpen]        = useState(false)
@@ -571,75 +574,137 @@ export default function DamageClient({ records }: Props) {
       {/* ── Report Damage Drawer ── */}
       <Drawer
         title={
-          <Space>
-            <WarningOutlined style={{ color: BRAND.critical }} />
-            <span>Report Damage</span>
-          </Space>
+          isMobile ? null : (
+            <Space>
+              <WarningOutlined style={{ color: BRAND.critical }} />
+              <span>Report Damage</span>
+            </Space>
+          )
         }
-        width={typeof window !== 'undefined' && window.innerWidth < 576 ? '100%' : 480}
+        placement={isMobile ? 'bottom' : 'right'}
+        height={isMobile ? '92vh' : undefined}
+        width={isMobile ? undefined : 480}
         open={drawerOpen}
         onClose={() => setDrawerOpen(false)}
-        extra={
+        closeIcon={isMobile ? null : undefined}
+        styles={isMobile ? {
+          wrapper: { borderRadius: '20px 20px 0 0', overflow: 'hidden' },
+          body:    { padding: '0 0 env(safe-area-inset-bottom, 0px)', overflowY: 'auto' },
+          header:  { display: 'none' },
+        } : undefined}
+        extra={isMobile ? null : (
           <Space>
             <Button onClick={() => setDrawerOpen(false)}>Cancel</Button>
-            <Button
-              type="primary"
-              danger
-              loading={submitting}
-              onClick={() => form.submit()}
-            >
+            <Button type="primary" danger loading={submitting} onClick={() => form.submit()}>
               Submit Report
             </Button>
           </Space>
-        }
+        )}
       >
-        <Alert
-          type="info"
-          showIcon
-          message="Damage records require manager approval before stock is deducted."
-          style={{ marginBottom: 20, borderRadius: 8 }}
-        />
+        {/* ── Mobile header ── */}
+        {isMobile && (
+          <div style={{
+            display:       'flex',
+            alignItems:    'center',
+            justifyContent:'space-between',
+            padding:       '16px 20px 12px',
+            borderBottom:  '1px solid #F0F0F0',
+            position:      'sticky',
+            top:           0,
+            background:    '#fff',
+            zIndex:        10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: '#FFEBEE', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <WarningOutlined style={{ color: BRAND.critical, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#333' }}>Report Damage</div>
+                <div style={{ fontSize: 11, color: '#999' }}>Requires manager approval</div>
+              </div>
+            </div>
+            <Button type="text" onClick={() => setDrawerOpen(false)} style={{ color: '#999', fontSize: 13 }}>
+              Cancel
+            </Button>
+          </div>
+        )}
 
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        {!isMobile && (
+          <Alert
+            type="info"
+            showIcon
+            message="Damage records require manager approval before stock is deducted."
+            style={{ marginBottom: 20, borderRadius: 8 }}
+          />
+        )}
 
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          style={{ padding: isMobile ? '16px 20px' : 0 }}
+        >
           {/* Description */}
           <Form.Item
             name="description"
             label="Description"
             rules={[{ required: true, message: 'Enter product description' }]}
           >
-            <Input placeholder="Enter product name / description..." />
-          </Form.Item>
-
-          {/* Barcode */}
-          <Form.Item label="Barcode">
             <Input
-              value={batchSku}
-              onChange={e => setBatchSku(e.target.value)}
-              placeholder="Enter barcode / SKU"
-              style={{ fontFamily: 'monospace' }}
+              size={isMobile ? 'large' : 'middle'}
+              placeholder="Product name / description..."
             />
           </Form.Item>
 
-          {/* Qty | Price */}
+          {/* Barcode */}
+          <Form.Item label="Barcode / SKU">
+            <Input
+              size={isMobile ? 'large' : 'middle'}
+              value={batchSku}
+              onChange={e => setBatchSku(e.target.value)}
+              placeholder="Scan or type barcode"
+              style={{ fontFamily: 'monospace' }}
+              suffix={
+                <ScanOutlined
+                  style={{ color: BRAND.green, fontSize: isMobile ? 18 : 14, cursor: 'pointer' }}
+                  onClick={() => setScanOpen(true)}
+                />
+              }
+            />
+          </Form.Item>
+
+          {/* Qty | Price — stack on mobile */}
           <Row gutter={12}>
             <Col xs={24} sm={12}>
               <Form.Item
                 name="quantity_damaged"
-                label="Qty"
+                label="Quantity Damaged"
                 rules={[{ required: true, message: 'Enter quantity' }]}
               >
-                <InputNumber min={0} step={0.01} style={{ width: '100%' }} onChange={onQtyChange} placeholder="0" />
+                <InputNumber
+                  size={isMobile ? 'large' : 'middle'}
+                  min={0}
+                  step={0.01}
+                  style={{ width: '100%' }}
+                  onChange={onQtyChange}
+                  placeholder="0"
+                  inputMode="decimal"
+                />
               </Form.Item>
             </Col>
             <Col xs={24} sm={12}>
-              <Form.Item label="Price (₦)">
+              <Form.Item label="Unit Price (₦)">
                 <InputNumber
+                  size={isMobile ? 'large' : 'middle'}
                   value={batchPrice || undefined}
                   min={0}
                   style={{ width: '100%' }}
                   formatter={v => `₦ ${v}`}
-                  placeholder="Auto-filled or enter price"
+                  placeholder="0"
+                  inputMode="decimal"
                   onChange={v => {
                     const p = Number(v ?? 0)
                     setBatchPrice(p)
@@ -654,48 +719,72 @@ export default function DamageClient({ records }: Props) {
           {/* Amount */}
           <Form.Item
             name="estimated_value_lost"
-            label="Amount (₦)"
+            label="Total Value Lost (₦)"
             rules={[{ required: true, message: 'Amount is required' }]}
             tooltip="Auto-calculated from Qty × Price. Adjust if needed."
           >
-            <InputNumber min={0} style={{ width: '100%' }} formatter={v => `₦ ${v}`} />
+            <InputNumber
+              size={isMobile ? 'large' : 'middle'}
+              min={0}
+              style={{ width: '100%' }}
+              formatter={v => `₦ ${v}`}
+              inputMode="decimal"
+            />
           </Form.Item>
 
           {/* Condition */}
           <Form.Item
             name="reason"
             label="Condition"
-            rules={[{ required: true, message: 'Enter or select a condition' }]}
+            rules={[{ required: true, message: 'Select or enter a condition' }]}
           >
             <AutoComplete
               options={allDamageReasons}
-              placeholder="Select or type condition..."
+              placeholder="e.g. Broken, Wet, Expired..."
               filterOption={(input, option) =>
                 (option?.value ?? '').toLowerCase().includes(input.toLowerCase())
               }
               allowClear
-            />
+            >
+              <Input size={isMobile ? 'large' : 'middle'} />
+            </AutoComplete>
           </Form.Item>
 
           {/* Category */}
           <Form.Item
             name="category"
-            label="Category"
-            rules={[{ required: true, message: 'Select a department category' }]}
+            label="Department"
+            rules={[{ required: true, message: 'Select a department' }]}
           >
-            <Select placeholder="Select department category...">
+            <Select size={isMobile ? 'large' : 'middle'} placeholder="Select department...">
               {STORE_CATEGORIES.map(cat => (
                 <Option key={cat} value={cat}>{cat}</Option>
               ))}
             </Select>
           </Form.Item>
 
-          <Form.Item name="notes" label="Additional Notes">
+          <Form.Item name="notes" label="Notes">
             <Input.TextArea
-              rows={3}
-              placeholder="Describe the damage in detail..."
+              rows={isMobile ? 2 : 3}
+              placeholder="Describe the damage..."
+              style={{ fontSize: isMobile ? 15 : 14 }}
             />
           </Form.Item>
+
+          {/* Mobile sticky submit */}
+          {isMobile && (
+            <Button
+              type="primary"
+              danger
+              size="large"
+              block
+              loading={submitting}
+              onClick={() => form.submit()}
+              style={{ marginTop: 8, height: 52, fontSize: 16, borderRadius: 12 }}
+            >
+              Submit Damage Report
+            </Button>
+          )}
         </Form>
       </Drawer>
 

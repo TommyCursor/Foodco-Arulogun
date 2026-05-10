@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Table, Tag, Button, Input, Select, Card, Statistic, Row, Col,
   Typography, Space, Empty, Drawer, Form, InputNumber, DatePicker, Modal, Alert, App,
-  Tooltip, Popconfirm,
+  Tooltip, Popconfirm, Grid,
 } from 'antd'
 import type { ColumnsType } from 'antd/es/table'
 import {
@@ -21,6 +21,7 @@ import type { InventoryItem } from '@/types'
 
 const { Title, Text } = Typography
 const { Option } = Select
+const { useBreakpoint } = Grid
 
 function daysLeft(expiry: string) {
   return dayjs(expiry).diff(dayjs().startOf('day'), 'day')
@@ -78,6 +79,8 @@ interface Props {
 export default function ExpiringClient({ items, sentNotifications }: Props) {
   const router              = useRouter()
   const { notification }    = App.useApp()
+  const screens             = useBreakpoint()
+  const isMobile            = !screens.md
   const [search, setSearch] = useState('')
   const [range,  setRange]  = useState<'all' | 2 | 7 | 14 | 30 | 90>('all')
   const [drawerOpen,  setDrawerOpen]  = useState(false)
@@ -581,15 +584,25 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
       {/* ── Report About to Expire Drawer ── */}
       <Drawer
         title={
-          <Space>
-            <ClockCircleOutlined style={{ color: BRAND.green }} />
-            <span>Report About to Expire</span>
-          </Space>
+          isMobile ? null : (
+            <Space>
+              <ClockCircleOutlined style={{ color: BRAND.green }} />
+              <span>Report About to Expire</span>
+            </Space>
+          )
         }
-        width={typeof window !== 'undefined' && window.innerWidth < 576 ? '100%' : 480}
+        placement={isMobile ? 'bottom' : 'right'}
+        height={isMobile ? '92vh' : undefined}
+        width={isMobile ? undefined : 480}
         open={drawerOpen}
         onClose={() => { setDrawerOpen(false); resetForm() }}
-        extra={
+        closeIcon={isMobile ? null : undefined}
+        styles={isMobile ? {
+          wrapper: { borderRadius: '20px 20px 0 0', overflow: 'hidden' },
+          body:    { padding: '0 0 env(safe-area-inset-bottom, 0px)', overflowY: 'auto' },
+          header:  { display: 'none' },
+        } : undefined}
+        extra={isMobile ? null : (
           <Space>
             <Button onClick={() => { setDrawerOpen(false); resetForm() }}>Cancel</Button>
             <Button
@@ -601,66 +614,118 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
               Submit Report
             </Button>
           </Space>
-        }
+        )}
       >
-        <Alert
-          type="info"
-          showIcon
-          message="Report expiring items discovered on the floor for team lead review."
-          style={{ marginBottom: 20, borderRadius: 8 }}
-        />
+        {/* ── Mobile header ── */}
+        {isMobile && (
+          <div style={{
+            display:       'flex',
+            alignItems:    'center',
+            justifyContent:'space-between',
+            padding:       '16px 20px 12px',
+            borderBottom:  '1px solid #F0F0F0',
+            position:      'sticky',
+            top:           0,
+            background:    '#fff',
+            zIndex:        10,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div style={{
+                width: 36, height: 36, borderRadius: '50%',
+                background: BRAND.greenBg, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              }}>
+                <ClockCircleOutlined style={{ color: BRAND.green, fontSize: 16 }} />
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 16, color: '#333' }}>Report Expiring Item</div>
+                <div style={{ fontSize: 11, color: '#999' }}>Flagged for team lead review</div>
+              </div>
+            </div>
+            <Button type="text" onClick={() => { setDrawerOpen(false); resetForm() }} style={{ color: '#999', fontSize: 13 }}>
+              Cancel
+            </Button>
+          </div>
+        )}
 
-        <Form form={form} layout="vertical" onFinish={handleSubmit}>
+        {!isMobile && (
+          <Alert
+            type="info"
+            showIcon
+            message="Report expiring items discovered on the floor for team lead review."
+            style={{ marginBottom: 20, borderRadius: 8 }}
+          />
+        )}
 
+        <Form
+          form={form}
+          layout="vertical"
+          onFinish={handleSubmit}
+          style={{ padding: isMobile ? '16px 20px' : 0 }}
+        >
           {/* Description */}
           <Form.Item
             name="description"
             label="Description"
             rules={[{ required: true, message: 'Enter product description' }]}
           >
-            <Input placeholder="Enter product name / description..." />
-          </Form.Item>
-
-          {/* Barcode */}
-          <Form.Item label="Barcode">
             <Input
-              value={batchSku}
-              onChange={e => setBatchSku(e.target.value)}
-              placeholder="Enter barcode / SKU"
-              style={{ fontFamily: 'monospace' }}
+              size={isMobile ? 'large' : 'middle'}
+              placeholder="Product name / description..."
             />
           </Form.Item>
 
-          {/* Qty | Price */}
+          {/* Barcode */}
+          <Form.Item label="Barcode / SKU">
+            <Input
+              size={isMobile ? 'large' : 'middle'}
+              value={batchSku}
+              onChange={e => setBatchSku(e.target.value)}
+              placeholder="Scan or type barcode"
+              style={{ fontFamily: 'monospace' }}
+              suffix={
+                <ScanOutlined
+                  style={{ color: BRAND.green, fontSize: isMobile ? 18 : 14, cursor: 'pointer' }}
+                  onClick={() => setScanOpen(true)}
+                />
+              }
+            />
+          </Form.Item>
+
+          {/* Qty | Price — stack on mobile */}
           <Row gutter={12}>
-            <Col xs={12}>
-              <Form.Item label="Qty">
+            <Col xs={24} sm={12}>
+              <Form.Item label="Quantity">
                 <InputNumber
+                  size={isMobile ? 'large' : 'middle'}
                   min={1}
                   style={{ width: '100%' }}
                   value={batchQty}
                   onChange={v => setBatchQty(v)}
                   placeholder="0"
+                  inputMode="decimal"
                 />
               </Form.Item>
             </Col>
-            <Col xs={12}>
+            <Col xs={24} sm={12}>
               <Form.Item label="Price (₦)">
                 <InputNumber
+                  size={isMobile ? 'large' : 'middle'}
                   min={0}
                   style={{ width: '100%' }}
                   value={batchPrice}
                   onChange={v => setBatchPrice(v)}
                   formatter={v => `₦ ${v}`}
                   placeholder="0"
+                  inputMode="decimal"
                 />
               </Form.Item>
             </Col>
           </Row>
 
           {/* Amount (auto-calculated) */}
-          <Form.Item label="Amount (₦)">
+          <Form.Item label="Total Value at Risk (₦)">
             <Input
+              size={isMobile ? 'large' : 'middle'}
               value={batchAmount > 0 ? `₦${batchAmount.toLocaleString()}` : ''}
               placeholder="Auto-calculated"
               readOnly
@@ -670,16 +735,21 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
 
           {/* Expiration date */}
           <Form.Item name="expiry_date" label="Expiration Date">
-            <DatePicker style={{ width: '100%' }} format="DD/MM/YYYY" />
+            <DatePicker
+              size={isMobile ? 'large' : 'middle'}
+              style={{ width: '100%' }}
+              format="DD/MM/YYYY"
+              inputReadOnly={isMobile}
+            />
           </Form.Item>
 
           {/* Category */}
           <Form.Item
             name="category"
-            label="Category"
-            rules={[{ required: true, message: 'Select a department category' }]}
+            label="Department"
+            rules={[{ required: true, message: 'Select a department' }]}
           >
-            <Select placeholder="Select department category...">
+            <Select size={isMobile ? 'large' : 'middle'} placeholder="Select department...">
               {STORE_CATEGORIES.map(cat => (
                 <Option key={cat} value={cat}>{cat}</Option>
               ))}
@@ -689,11 +759,25 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
           {/* Notes */}
           <Form.Item name="notes" label="Notes (optional)">
             <Input.TextArea
-              rows={3}
-              placeholder="Additional observations about this item..."
+              rows={isMobile ? 2 : 3}
+              placeholder="Any observations about this item..."
+              style={{ fontSize: isMobile ? 15 : 14 }}
             />
           </Form.Item>
 
+          {/* Mobile sticky submit */}
+          {isMobile && (
+            <Button
+              type="primary"
+              size="large"
+              block
+              loading={submitting}
+              onClick={() => form.submit()}
+              style={{ marginTop: 8, height: 52, fontSize: 16, borderRadius: 12, background: BRAND.green }}
+            >
+              Submit Expiry Report
+            </Button>
+          )}
         </Form>
       </Drawer>
 
