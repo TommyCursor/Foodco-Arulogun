@@ -20,6 +20,7 @@ import { BRAND } from '@/lib/constants'
 import { useProfile } from '@/lib/hooks/useProfile'
 import NotificationBell from '@/components/NotificationBell'
 import BottomNav from '@/components/BottomNav'
+import ChatBot from '@/components/ChatBot'
 
 const { Sider, Header, Content } = Layout
 const { Text } = Typography
@@ -283,6 +284,9 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
 
       {/* ── Mobile Bottom Navigation ── */}
       {isMobile && <BottomNav items={visibleNav} />}
+
+      {/* ── AI Chatbot (all pages) ── */}
+      <ChatBot />
     </Layout>
   )
 }
