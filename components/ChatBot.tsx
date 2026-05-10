@@ -124,11 +124,24 @@ export default function ChatBot() {
     router.push(path)
   }
 
+  function openChat() {
+    setCallout(false)
+    setOpen(o => !o)
+  }
+
   const [open,      setOpen]      = useState(false)
   const [messages,  setMessages]  = useState<Message[]>([])
   const [input,     setInput]     = useState('')
   const [loading,   setLoading]   = useState(false)
   const [streaming, setStreaming] = useState(false)
+  const [callout,   setCallout]   = useState(false)
+
+  // Show callout on every visit, dismiss after 6s or when user opens chat
+  useEffect(() => {
+    const show = setTimeout(() => setCallout(true), 1200)
+    const hide = setTimeout(() => setCallout(false), 7200)
+    return () => { clearTimeout(show); clearTimeout(hide) }
+  }, [])
 
   const bottomRef  = useRef<HTMLDivElement>(null)
   const inputRef   = useRef<InputRef>(null)
@@ -248,11 +261,24 @@ export default function ChatBot() {
 
   return (
     <>
-      {/* ── Keyframe for typing dots ── */}
+      {/* ── Keyframes ── */}
       <style>{`
         @keyframes chatBotBounce {
           0%, 60%, 100% { transform: translateY(0); }
           30% { transform: translateY(-6px); }
+        }
+        @keyframes chatPulse {
+          0%   { transform: scale(1);    opacity: 0.6; }
+          70%  { transform: scale(1.9);  opacity: 0;   }
+          100% { transform: scale(1.9);  opacity: 0;   }
+        }
+        @keyframes chatCalloutIn {
+          from { opacity: 0; transform: translateY(6px) scale(0.95); }
+          to   { opacity: 1; transform: translateY(0)   scale(1);    }
+        }
+        @keyframes chatCalloutOut {
+          from { opacity: 1; }
+          to   { opacity: 0; transform: translateY(4px); }
         }
       `}</style>
 
@@ -418,35 +444,82 @@ export default function ChatBot() {
         </div>
       )}
 
-      {/* ── Floating trigger button ──
-           Hidden on mobile when open: the panel header already has a close button,
-           and the floating button overlaps the input bar at that z-position. */}
+      {/* ── Floating trigger button (hidden on mobile when panel is open) ── */}
       {!(open && isMobile) && (
-        <button
-          onClick={() => setOpen(o => !o)}
-          style={{
-            position:       'fixed',
-            bottom:         isMobile ? 76 : 24,
-            right:          24,
-            width:          52,
-            height:         52,
-            borderRadius:   '50%',
-            background:     open ? '#555' : BRAND.green,
-            border:         'none',
-            cursor:         'pointer',
-            display:        'flex',
-            alignItems:     'center',
-            justifyContent: 'center',
-            fontSize:       22,
-            color:          '#fff',
-            boxShadow:      '0 4px 16px rgba(0,0,0,0.22)',
-            transition:     'background 0.2s, transform 0.2s',
-            zIndex:         401,
-            WebkitTapHighlightColor: 'transparent',
-          }}
-        >
-          {open ? <CloseOutlined style={{ fontSize: 18 }} /> : <MessageOutlined />}
-        </button>
+        <div style={{
+          position: 'fixed',
+          bottom:   isMobile ? 76 : 24,
+          right:    24,
+          zIndex:   401,
+        }}>
+          {/* Callout bubble */}
+          {callout && !open && (
+            <div style={{
+              position:     'absolute',
+              bottom:       62,
+              right:        0,
+              background:   '#1a1a1a',
+              color:        '#fff',
+              borderRadius: 12,
+              padding:      '10px 14px',
+              fontSize:     13,
+              fontWeight:   500,
+              whiteSpace:   'nowrap',
+              boxShadow:    '0 4px 16px rgba(0,0,0,0.28)',
+              animation:    'chatCalloutIn 0.3s ease forwards',
+              pointerEvents:'none',
+            }}>
+              Ask me anything about today&apos;s store
+              {/* tail */}
+              <div style={{
+                position:    'absolute',
+                bottom:      -7,
+                right:       18,
+                width:       0,
+                height:      0,
+                borderLeft:  '7px solid transparent',
+                borderRight: '7px solid transparent',
+                borderTop:   '8px solid #1a1a1a',
+              }} />
+            </div>
+          )}
+
+          {/* Pulse ring — only when button is idle (not open) */}
+          {!open && (
+            <div style={{
+              position:     'absolute',
+              inset:        0,
+              borderRadius: '50%',
+              background:   BRAND.green,
+              animation:    'chatPulse 2s ease-out infinite',
+              pointerEvents:'none',
+            }} />
+          )}
+
+          {/* The button itself */}
+          <button
+            onClick={openChat}
+            style={{
+              position:       'relative',
+              width:          52,
+              height:         52,
+              borderRadius:   '50%',
+              background:     open ? '#555' : BRAND.green,
+              border:         'none',
+              cursor:         'pointer',
+              display:        'flex',
+              alignItems:     'center',
+              justifyContent: 'center',
+              fontSize:       22,
+              color:          '#fff',
+              boxShadow:      '0 4px 16px rgba(0,0,0,0.22)',
+              transition:     'background 0.2s',
+              WebkitTapHighlightColor: 'transparent',
+            }}
+          >
+            {open ? <CloseOutlined style={{ fontSize: 18 }} /> : <MessageOutlined />}
+          </button>
+        </div>
       )}
     </>
   )
