@@ -7,6 +7,7 @@ import {
   MessageOutlined, CloseOutlined, SendOutlined,
   RobotOutlined, UserOutlined, ClearOutlined,
 } from '@ant-design/icons'
+import { useRouter } from 'next/navigation'
 import { BRAND } from '@/lib/constants'
 
 const { Text } = Typography
@@ -42,7 +43,34 @@ function TypingDots() {
   )
 }
 
-function MessageBubble({ msg }: { msg: Message }) {
+// Parse text with [label](/path) markdown links into React nodes
+function parseLinks(text: string, onNavigate: (path: string) => void): React.ReactNode[] {
+  const parts = text.split(/(\[[^\]]+\]\([^)]+\))/g)
+  return parts.map((part, i) => {
+    const match = part.match(/^\[([^\]]+)\]\(([^)]+)\)$/)
+    if (match) {
+      const [, label, href] = match
+      const isInternal = href.startsWith('/')
+      return (
+        <span
+          key={i}
+          onClick={() => isInternal ? onNavigate(href) : undefined}
+          style={{
+            color:          BRAND.green,
+            textDecoration: 'underline',
+            cursor:         'pointer',
+            fontWeight:     500,
+          }}
+        >
+          {label}
+        </span>
+      )
+    }
+    return <span key={i}>{part}</span>
+  })
+}
+
+function MessageBubble({ msg, onNavigate }: { msg: Message; onNavigate: (path: string) => void }) {
   const isUser = msg.role === 'user'
   return (
     <div style={{
@@ -80,15 +108,21 @@ function MessageBubble({ msg }: { msg: Message }) {
         wordBreak:    'break-word',
         border:       isUser ? 'none' : '1px solid #EFEFEF',
       }}>
-        {msg.content}
+        {isUser ? msg.content : parseLinks(msg.content, onNavigate)}
       </div>
     </div>
   )
 }
 
 export default function ChatBot() {
-  const screens  = useBreakpoint()
-  const isMobile = !screens.md
+  const screens    = useBreakpoint()
+  const isMobile   = !screens.md
+  const router     = useRouter()
+
+  function handleNavigate(path: string) {
+    setOpen(false)
+    router.push(path)
+  }
 
   const [open,      setOpen]      = useState(false)
   const [messages,  setMessages]  = useState<Message[]>([])
@@ -322,7 +356,7 @@ export default function ChatBot() {
             ) : (
               <>
                 {messages.map((msg, i) => (
-                  <MessageBubble key={i} msg={msg} />
+                  <MessageBubble key={i} msg={msg} onNavigate={handleNavigate} />
                 ))}
                 {loading && (
                   <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
