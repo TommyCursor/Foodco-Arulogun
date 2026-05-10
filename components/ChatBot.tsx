@@ -296,10 +296,15 @@ export default function ChatBot() {
               )}
               <Button
                 type="text"
-                size="small"
                 icon={<CloseOutlined />}
                 onClick={() => setOpen(false)}
-                style={{ color: '#bbb' }}
+                style={{
+                  color:  '#888',
+                  width:  isMobile ? 40 : 28,
+                  height: isMobile ? 40 : 28,
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: isMobile ? 16 : 14,
+                }}
               />
             </div>
           </div>
@@ -413,32 +418,36 @@ export default function ChatBot() {
         </div>
       )}
 
-      {/* ── Floating trigger button ── */}
-      <button
-        onClick={() => setOpen(o => !o)}
-        style={{
-          position:       'fixed',
-          bottom:         isMobile ? 76 : 24,
-          right:          24,
-          width:          52,
-          height:         52,
-          borderRadius:   '50%',
-          background:     open ? '#555' : BRAND.green,
-          border:         'none',
-          cursor:         'pointer',
-          display:        'flex',
-          alignItems:     'center',
-          justifyContent: 'center',
-          fontSize:       22,
-          color:          '#fff',
-          boxShadow:      '0 4px 16px rgba(0,0,0,0.22)',
-          transition:     'background 0.2s, transform 0.2s',
-          zIndex:         401,
-          WebkitTapHighlightColor: 'transparent',
-        }}
-      >
-        {open ? <CloseOutlined style={{ fontSize: 18 }} /> : <MessageOutlined />}
-      </button>
+      {/* ── Floating trigger button ──
+           Hidden on mobile when open: the panel header already has a close button,
+           and the floating button overlaps the input bar at that z-position. */}
+      {!(open && isMobile) && (
+        <button
+          onClick={() => setOpen(o => !o)}
+          style={{
+            position:       'fixed',
+            bottom:         isMobile ? 76 : 24,
+            right:          24,
+            width:          52,
+            height:         52,
+            borderRadius:   '50%',
+            background:     open ? '#555' : BRAND.green,
+            border:         'none',
+            cursor:         'pointer',
+            display:        'flex',
+            alignItems:     'center',
+            justifyContent: 'center',
+            fontSize:       22,
+            color:          '#fff',
+            boxShadow:      '0 4px 16px rgba(0,0,0,0.22)',
+            transition:     'background 0.2s, transform 0.2s',
+            zIndex:         401,
+            WebkitTapHighlightColor: 'transparent',
+          }}
+        >
+          {open ? <CloseOutlined style={{ fontSize: 18 }} /> : <MessageOutlined />}
+        </button>
+      )}
     </>
   )
 }
