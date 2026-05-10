@@ -1,14 +1,36 @@
 import type { Metadata, Viewport } from 'next'
 import { AntdRegistry } from '@ant-design/nextjs-registry'
+import { Montserrat, Open_Sans, Roboto_Mono } from 'next/font/google'
 import Providers from './providers'
 import './globals.css'
 
+const montserrat = Montserrat({
+  subsets:  ['latin'],
+  variable: '--font-montserrat',
+  display:  'swap',
+  weight:   ['400', '500', '600', '700'],
+})
+
+const openSans = Open_Sans({
+  subsets:  ['latin'],
+  variable: '--font-open-sans',
+  display:  'swap',
+  weight:   ['400', '500', '600', '700'],
+})
+
+const robotoMono = Roboto_Mono({
+  subsets:  ['latin'],
+  variable: '--font-roboto-mono',
+  display:  'swap',
+  weight:   ['400', '500'],
+})
+
 export const viewport: Viewport = {
-  themeColor:        '#2E7D32',
-  width:             'device-width',
-  initialScale:      1,
-  maximumScale:      1,
-  userScalable:      false,
+  themeColor:   '#2E7D32',
+  width:        'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
 }
 
 export const metadata: Metadata = {
@@ -16,9 +38,9 @@ export const metadata: Metadata = {
   description: 'Retail Command System — Inventory, Alerts & Reports',
   manifest:    '/manifest.json',
   appleWebApp: {
-    capable:           true,
-    statusBarStyle:    'default',
-    title:             'Foodco Arulogun',
+    capable:        true,
+    statusBarStyle: 'default',
+    title:          'Foodco Arulogun',
   },
   icons: {
     icon:  [
@@ -31,7 +53,7 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${montserrat.variable} ${openSans.variable} ${robotoMono.variable}`}>
       <body suppressHydrationWarning>
         <AntdRegistry>
           <Providers>

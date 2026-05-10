@@ -26,7 +26,7 @@ export const ANT_THEME = {
     colorBgBase:        BRAND.white,
     colorBgLayout:      BRAND.grayBg,
     borderRadius:       8,
-    fontFamily:         "'Open Sans', 'Segoe UI', sans-serif",
+    fontFamily:         "var(--font-open-sans), 'Open Sans', 'Segoe UI', sans-serif",
   },
   components: {
     Layout: {

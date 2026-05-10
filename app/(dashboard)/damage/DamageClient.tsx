@@ -423,11 +423,11 @@ export default function DamageClient({ records }: Props) {
           </Card>
         </Col>
         <Col xs={12} md={6}>
-          <Card className="kpi-card critical" bordered={false} size="small">
+          <Card className={`kpi-card ${stats.todayLoss > 0 ? 'critical' : 'success'}`} bordered={false} size="small">
             <Statistic
               title="Loss Today"
               value={`₦${stats.todayLoss.toLocaleString()}`}
-              valueStyle={{ color: BRAND.critical, fontSize: 20, fontWeight: 700 }}
+              valueStyle={{ color: stats.todayLoss > 0 ? BRAND.critical : BRAND.green, fontSize: 20, fontWeight: 700 }}
             />
           </Card>
         </Col>
