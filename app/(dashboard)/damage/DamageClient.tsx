@@ -14,6 +14,7 @@ import {
   CheckCircleOutlined, DeleteOutlined, EyeOutlined, ScanOutlined,
 } from '@ant-design/icons'
 import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
+import PipelineTracker from '@/components/PipelineTracker'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { BRAND, STORE_CATEGORIES } from '@/lib/constants'
@@ -793,8 +794,18 @@ export default function DamageClient({ records }: Props) {
               )}
             </Row>
 
-            {/* Timeline */}
+            {/* Pipeline Tracker */}
             <div style={{ marginTop: 20 }}>
+              <PipelineTracker
+                stage={detailRecord.inventory_item?.pipeline_stage ?? 'damage_reported'}
+                reportedAt={detailRecord.reported_at}
+                finalStatus={effectiveStatus(detailRecord) as 'approved' | 'rejected' | 'pending'}
+                compact
+              />
+            </div>
+
+            {/* Activity log */}
+            <div style={{ marginTop: 4 }}>
               <Text type="secondary" style={{ fontSize: 12, display: 'block', marginBottom: 10 }}>Activity</Text>
               <Timeline
                 items={[

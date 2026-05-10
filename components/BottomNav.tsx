@@ -130,7 +130,6 @@ export default function BottomNav({ items }: Props) {
                 key={item.key}
                 onClick={() => go(item.key)}
                 style={{
-                  border:         'none',
                   background:     active ? BRAND.greenBg : '#fafafa',
                   cursor:         'pointer',
                   display:        'flex',

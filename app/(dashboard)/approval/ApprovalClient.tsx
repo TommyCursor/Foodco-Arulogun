@@ -15,6 +15,7 @@ import {
 import dayjs from 'dayjs'
 import { BRAND } from '@/lib/constants'
 import type { InventoryItem } from '@/types'
+import PipelineTracker from '@/components/PipelineTracker'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -511,6 +512,18 @@ export default function ApprovalClient({ items }: Props) {
             scroll={{ x: 1100 }}
             size="small"
             rowClassName={() => 'row-warning'}
+            expandable={{
+              expandedRowRender: (item) => (
+                <div style={{ padding: '8px 16px 4px' }}>
+                  <PipelineTracker
+                    stage={(item as any).pipeline_stage ?? 'resolution_received'}
+                    reportedAt={getReportedAt(item) ?? undefined}
+                    compact
+                  />
+                </div>
+              ),
+              rowExpandable: () => true,
+            }}
             pagination={{
               pageSize: 20,
               showSizeChanger: true,

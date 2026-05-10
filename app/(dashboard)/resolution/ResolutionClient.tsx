@@ -17,6 +17,7 @@ import {
 import dayjs from 'dayjs'
 import { BRAND } from '@/lib/constants'
 import type { InventoryItem } from '@/types'
+import PipelineTracker from '@/components/PipelineTracker'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -460,6 +461,13 @@ export default function ResolutionClient({ items }: Props) {
           const reportType = getReportType(drawer.item)
           return (
             <div>
+              {/* Pipeline tracker */}
+              <PipelineTracker
+                stage={(drawer.item as any).pipeline_stage ?? 'sent_to_loss_control'}
+                reportedAt={getReportedAt(drawer.item) ?? undefined}
+                compact
+              />
+
               {/* Item summary */}
               <Card size="small" style={{ background: '#F8F9FA', borderRadius: 8, marginBottom: 16 }}>
                 <Row gutter={[8, 8]}>

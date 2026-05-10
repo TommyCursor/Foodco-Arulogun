@@ -18,6 +18,7 @@ import {
 import dayjs from 'dayjs'
 import { BRAND } from '@/lib/constants'
 import type { InventoryItem, PipelineStage } from '@/types'
+import PipelineTracker from '@/components/PipelineTracker'
 
 const { Title, Text } = Typography
 
@@ -466,6 +467,17 @@ export default function LossControlClient({ items }: Props) {
                 if (item.pipeline_stage === 'damage_reported') return 'row-critical'
                 if (item.pipeline_stage === 'expiry_reported') return 'row-warning'
                 return ''
+              }}
+              expandable={{
+                expandedRowRender: (item) => (
+                  <div style={{ padding: '8px 16px 4px' }}>
+                    <PipelineTracker
+                      stage={item.pipeline_stage ?? 'damage_reported'}
+                      compact
+                    />
+                  </div>
+                ),
+                rowExpandable: () => true,
               }}
               pagination={{
                 pageSize: 20,
