@@ -14,6 +14,7 @@ import {
   DeleteOutlined, BellOutlined, ScanOutlined,
 } from '@ant-design/icons'
 import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
+import EmptyState from '@/components/EmptyState'
 import dayjs from 'dayjs'
 import { BRAND, STORE_CATEGORIES } from '@/lib/constants'
 import type { InventoryItem } from '@/types'
@@ -508,14 +509,19 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
       {/* ── Table ── */}
       <Card bordered={false} style={{ borderRadius: 8 }}>
         {filtered.length === 0 ? (
-          <Empty
-            description={
-              search || range !== 'all'
-                ? 'No items match the current filter'
-                : 'No items expiring within 90 days'
-            }
-            style={{ padding: '40px 0' }}
-          />
+          search || range !== 'all' ? (
+            <EmptyState
+              variant="filtered"
+              title="No items match your filter"
+              action={{ label: 'Clear filter', onClick: () => { setSearch(''); setRange('all') } }}
+            />
+          ) : (
+            <EmptyState
+              variant="healthy"
+              title="No items expiring soon"
+              description="Your inventory is healthy — no products are within the expiry warning window. Check back as stock ages."
+            />
+          )
         ) : (
           <Table<InventoryItem>
             dataSource={filtered}

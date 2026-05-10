@@ -19,6 +19,7 @@ import dayjs from 'dayjs'
 import { BRAND, DISCOUNT, EXPIRY, STORE_CATEGORIES } from '@/lib/constants'
 import type { Discount, InventoryItem } from '@/types'
 import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
+import EmptyState from '@/components/EmptyState'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -622,7 +623,20 @@ export default function DiscountsClient({ discounts, eligibleBatches }: Props) {
       {/* ── Table ── */}
       <Card bordered={false} style={{ borderRadius: 8 }}>
         {filtered.length === 0 ? (
-          <Empty description="No discounts found" style={{ padding: '40px 0' }} />
+          search || filterStatus !== 'active' || filterType !== 'all' ? (
+            <EmptyState
+              variant="filtered"
+              title="No discounts match your filter"
+              action={{ label: 'Clear filter', onClick: () => { setSearch(''); setFilterStatus('active'); setFilterType('all') } }}
+            />
+          ) : (
+            <EmptyState
+              variant="info"
+              title="No active discounts"
+              description="Use the AI suggestion panel above to get recommended discounts, or create one manually for items that need clearance pricing."
+              action={{ label: 'Create Discount', primary: true, onClick: () => { resetDrawer(); setDrawerOpen(true) } }}
+            />
+          )
         ) : (
           <Table<Discount>
             dataSource={filtered}

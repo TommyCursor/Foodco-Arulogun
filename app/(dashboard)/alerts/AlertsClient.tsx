@@ -17,6 +17,7 @@ import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { BRAND } from '@/lib/constants'
 import type { AutomatedAlert, AlertLog, Category } from '@/types'
+import EmptyState from '@/components/EmptyState'
 
 dayjs.extend(relativeTime)
 
@@ -279,7 +280,12 @@ export default function AlertsClient({ alerts, logs, categories }: Props) {
           </div>
           <Card bordered={false} style={{ borderRadius: 8 }}>
             {alerts.length === 0 ? (
-              <Empty description="No alert rules yet. Create one to start monitoring." style={{ padding: '40px 0' }} />
+              <EmptyState
+                variant="info"
+                title="No alert rules configured"
+                description="Create a rule to automatically monitor stock levels, expiry dates, or loss thresholds — and get notified when something needs attention."
+                action={{ label: 'Create Alert Rule', primary: true, onClick: () => setDrawerOpen(true) }}
+              />
             ) : (
               <Table dataSource={alerts} columns={ruleColumns} rowKey="id" size="small" pagination={false} />
             )}

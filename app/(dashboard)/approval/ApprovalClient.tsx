@@ -16,6 +16,7 @@ import dayjs from 'dayjs'
 import { BRAND } from '@/lib/constants'
 import type { InventoryItem } from '@/types'
 import PipelineTracker from '@/components/PipelineTracker'
+import EmptyState from '@/components/EmptyState'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -496,14 +497,19 @@ export default function ApprovalClient({ items }: Props) {
       {/* ── Table ────────────────────────────────────────── */}
       <Card bordered={false} style={{ borderRadius: 8 }}>
         {filtered.length === 0 ? (
-          <Empty
-            description={
-              search || filterType !== 'all'
-                ? 'No items match the filter'
-                : 'No items pending approval — all caught up!'
-            }
-            style={{ padding: '40px 0' }}
-          />
+          search || filterType !== 'all' ? (
+            <EmptyState
+              variant="filtered"
+              title="No items match your filter"
+              action={{ label: 'Clear filter', onClick: () => { setSearch(''); setFilterType('all') } }}
+            />
+          ) : (
+            <EmptyState
+              variant="healthy"
+              title="All caught up — nothing to approve"
+              description="Items will appear here once the Loss Control team has entered a resolution. Approve or reject each one to close the pipeline."
+            />
+          )
         ) : (
           <Table<InventoryItem>
             dataSource={filtered}

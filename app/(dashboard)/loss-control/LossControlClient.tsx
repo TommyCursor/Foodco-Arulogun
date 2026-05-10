@@ -19,6 +19,7 @@ import dayjs from 'dayjs'
 import { BRAND } from '@/lib/constants'
 import type { InventoryItem, PipelineStage } from '@/types'
 import PipelineTracker from '@/components/PipelineTracker'
+import EmptyState from '@/components/EmptyState'
 
 const { Title, Text } = Typography
 
@@ -442,9 +443,10 @@ export default function LossControlClient({ items }: Props) {
       {/* ── Table ── */}
       <Card bordered={false} style={{ borderRadius: 8 }}>
         {items.length === 0 ? (
-          <Empty
-            description="No pending reports — all items have been sent to Loss Control"
-            style={{ padding: '40px 0' }}
+          <EmptyState
+            variant="healthy"
+            title="Pipeline is clear"
+            description="No items are waiting to be sent to Loss Control. All reported damage, expiry, and discount items have been processed."
           />
         ) : (
           <>

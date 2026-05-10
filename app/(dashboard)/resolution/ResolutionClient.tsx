@@ -18,6 +18,7 @@ import dayjs from 'dayjs'
 import { BRAND } from '@/lib/constants'
 import type { InventoryItem } from '@/types'
 import PipelineTracker from '@/components/PipelineTracker'
+import EmptyState from '@/components/EmptyState'
 
 const { Title, Text } = Typography
 const { Option } = Select
@@ -403,10 +404,19 @@ export default function ResolutionClient({ items }: Props) {
       {/* ── Table ─────────────────────────────────────────── */}
       <Card bordered={false} style={{ borderRadius: 8 }}>
         {filtered.length === 0 ? (
-          <Empty
-            description={search || filterStage !== 'all' ? 'No items match the filter' : 'No items awaiting resolution'}
-            style={{ padding: '40px 0' }}
-          />
+          search || filterStage !== 'all' ? (
+            <EmptyState
+              variant="filtered"
+              title="No items match your filter"
+              action={{ label: 'Clear filter', onClick: () => { setSearch(''); setFilterStage('all') } }}
+            />
+          ) : (
+            <EmptyState
+              variant="waiting"
+              title="Nothing awaiting resolution"
+              description="Items arrive here after a team lead sends them to Loss Control. Enter the resolution feedback from LC to move each item to approval."
+            />
+          )
         ) : (
           <Table<InventoryItem>
             dataSource={filtered}

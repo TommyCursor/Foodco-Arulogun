@@ -15,6 +15,7 @@ import {
 } from '@ant-design/icons'
 import NotebookScanModal, { type ScanRow } from '@/components/NotebookScanModal'
 import PipelineTracker from '@/components/PipelineTracker'
+import EmptyState from '@/components/EmptyState'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import { BRAND, STORE_CATEGORIES } from '@/lib/constants'
@@ -517,7 +518,20 @@ export default function DamageClient({ records }: Props) {
       {/* ── Table ── */}
       <Card bordered={false} style={{ borderRadius: 8 }}>
         {filtered.length === 0 ? (
-          <Empty description="No damage records found" style={{ padding: '40px 0' }} />
+          search || filterStatus !== 'all' ? (
+            <EmptyState
+              variant="filtered"
+              title="No records match your filter"
+              action={{ label: 'Clear filter', onClick: () => { setSearch(''); setFilterStatus('all') } }}
+            />
+          ) : (
+            <EmptyState
+              variant="healthy"
+              title="No damage reported yet"
+              description="When staff log a damaged item it will appear here for review and approval."
+              action={{ label: 'Report Damage', primary: true, onClick: () => setDrawerOpen(true) }}
+            />
+          )
         ) : (
           <Table<DamageRecord>
             dataSource={filtered}
