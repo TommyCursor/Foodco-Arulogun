@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { GoogleGenerativeAI } from '@google/generative-ai'
+import Groq from 'groq-sdk'
 import { createClient } from '@/lib/supabase/server'
 
 type Section = 'damage' | 'expiring' | 'discount'
@@ -8,20 +8,20 @@ const CATEGORIES = 'Grocery, Fresh Food, Toiletries, Baby, Health & Beauty, 3F, 
 
 const SHARED_RULES = `
 Rules:
-- Return ONLY a valid JSON array. No markdown, no code fences, no explanation.
-- Extract EVERY row visible in the image — do not stop early.
-- If a field is not visible, use "" for strings and 0 for numbers.
-- For "barcode": read the barcode number or SKU exactly as printed. Use "" if none visible.
-- For "category": infer from the product type. Must be one of: ${CATEGORIES}. Use your best judgement.
-- For prices: extract numbers only, no currency symbols.
+- Return ONLY a valid JSON array. No markdown, no code fences, no explanation whatsoever.
+- Extract EVERY single row visible in the image — do not stop early, do not skip any item.
+- For "barcode": read the barcode number or SKU exactly as printed. Use "" if not visible.
+- For "category": infer from the product type. Must be one of: ${CATEGORIES}. Use best judgement.
+- For prices: numbers only, no currency symbols.
+- If a field is unclear, use "" for strings and 0 for numbers.
 - If no records found, return [].`
 
 const PROMPTS: Record<Section, string> = {
   damage: `You are a data extraction assistant for Foodco Arulogun retail store.
-Extract ALL damage records from this image. This may be a handwritten notebook, printed list, or product labels.
+Extract ALL damage records from this image. It may be a handwritten notebook, printed list, or product labels.
 
 Return a JSON array where each object has exactly these fields:
-- "barcode": barcode number or SKU printed on label/sheet (string, "" if not visible)
+- "barcode": barcode number or SKU printed on label/sheet (string)
 - "description": product name exactly as written (string)
 - "quantity": number of damaged units (number, default 1)
 - "price": unit price in naira (number, 0 if not shown)
@@ -33,14 +33,14 @@ ${SHARED_RULES}
 Example: [{"barcode":"6001234567890","description":"Milo 400g","quantity":2,"price":1200,"reason":"Pest damage","category":"Grocery","notes":"shelf 3"}]`,
 
   expiring: `You are a data extraction assistant for Foodco Arulogun retail store.
-Extract ALL about-to-expire product records from this image. This may be a handwritten notebook, product labels, or a printed expiry report.
+Extract ALL about-to-expire product records from this image. It may be a handwritten notebook, product labels, or printed expiry report.
 
 Return a JSON array where each object has exactly these fields:
-- "barcode": barcode number or SKU printed on label/sheet (string, "" if not visible)
+- "barcode": barcode number or SKU printed on label/sheet (string)
 - "description": product name exactly as written (string)
 - "quantity": number of units (number, default 1)
 - "price": unit price in naira (number, 0 if not shown)
-- "expiry_date": expiry date in YYYY-MM-DD format — look for "EXP", "BB", "Use by", "Best before" (string, "" if not visible)
+- "expiry_date": expiry date in YYYY-MM-DD format — look for EXP, BB, Use by, Best before (string, "" if not visible)
 - "category": department — must be one of: ${CATEGORIES} (string, infer from product)
 - "notes": any extra notes visible (string, "" if none)
 ${SHARED_RULES}
@@ -48,10 +48,10 @@ ${SHARED_RULES}
 Example: [{"barcode":"6009876543210","description":"Peak Milk 400g","quantity":6,"price":950,"expiry_date":"2025-06-15","category":"Grocery","notes":""}]`,
 
   discount: `You are a data extraction assistant for Foodco Arulogun retail store.
-Extract ALL discount or price-markdown records from this image. This may be a handwritten list, printed markdown sheet, or product labels.
+Extract ALL discount or price-markdown records from this image. It may be a handwritten list, printed markdown sheet, or product labels.
 
 Return a JSON array where each object has exactly these fields:
-- "barcode": barcode number or SKU printed on label/sheet (string, "" if not visible)
+- "barcode": barcode number or SKU printed on label/sheet (string)
 - "description": product name exactly as written (string)
 - "quantity": number of units (number, default 1)
 - "original_price": original unit price in naira before discount (number, 0 if not shown)
@@ -82,23 +82,29 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: 'section must be damage, expiring, or discount' }, { status: 400 })
     }
 
-    const genAI = new GoogleGenerativeAI(process.env.GOOGLE_AI_API_KEY!)
-    const model = genAI.getGenerativeModel({
-      model: 'gemini-2.0-flash',
-      generationConfig: {
-        temperature:     0.1,   // low temperature = consistent structured output
-        maxOutputTokens: 8192,
-      },
+    const groq = new Groq({ apiKey: process.env.GROQ_API_KEY })
+    const response = await groq.chat.completions.create({
+      model:      'meta-llama/llama-4-scout-17b-16e-instruct',
+      max_tokens: 8192,
+      temperature: 0.1,
+      messages: [
+        {
+          role: 'user',
+          content: [
+            {
+              type:      'image_url',
+              image_url: { url: `data:${mimeType};base64,${image}` },
+            },
+            {
+              type: 'text',
+              text: PROMPTS[section],
+            },
+          ],
+        },
+      ],
     })
 
-    const result = await model.generateContent([
-      { inlineData: { mimeType, data: image } },
-      PROMPTS[section],
-    ])
-
-    const raw = result.response.text()
-
-    // Strip any markdown fences the model might still add
+    const raw = response.choices[0]?.message?.content ?? '[]'
     const cleaned = raw.replace(/```json\s*/gi, '').replace(/```\s*/g, '').trim()
 
     let records: unknown[]
