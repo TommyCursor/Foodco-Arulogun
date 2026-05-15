@@ -3,37 +3,43 @@ import { createClient } from '@/lib/supabase/server'
 import { createAdminClient } from '@/lib/supabase/admin'
 
 export async function GET() {
-  // Auth check via cookie session
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Data via admin client — reliable, no RLS deep-join issues
   const admin = createAdminClient()
 
-  const { data: profile, error: profileErr } = await admin
+  // Single query — join profile + role + permissions in one round-trip
+  const { data: profile, error } = await admin
     .from('profiles')
-    .select('id, full_name, role_id, roles(name)')
+    .select('id, full_name, role_id, roles(name, role_permissions(permissions(key)))')
     .eq('id', user.id)
     .single()
 
-  if (profileErr || !profile) {
+  if (error || !profile) {
     return NextResponse.json({ error: 'Profile not found' }, { status: 404 })
   }
 
-  const { data: perms } = await admin
-    .from('role_permissions')
-    .select('permissions(key)')
-    .eq('role_id', profile.role_id)
+  const role        = (profile.roles as any)
+  const rolePerms   = role?.role_permissions ?? []
+  const permissions = rolePerms
+    .map((rp: any) => rp.permissions?.key)
+    .filter(Boolean) as string[]
 
-  const permissions: string[] =
-    (perms ?? []).map((row: any) => row.permissions?.key).filter(Boolean)
-
-  return NextResponse.json({
-    id: profile.id,
-    full_name: profile.full_name,
-    role_id: profile.role_id,
-    role_name: (profile.roles as any)?.name ?? 'unknown',
+  const body = JSON.stringify({
+    id:          profile.id,
+    full_name:   profile.full_name,
+    role_id:     profile.role_id,
+    role_name:   role?.name ?? 'unknown',
     permissions,
+  })
+
+  // Cache in browser for 60 s — role changes are rare and non-critical
+  return new NextResponse(body, {
+    status: 200,
+    headers: {
+      'Content-Type':  'application/json',
+      'Cache-Control': 'private, max-age=60, stale-while-revalidate=30',
+    },
   })
 }
