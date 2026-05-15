@@ -150,12 +150,12 @@ export default function DamageClient({ records }: Props) {
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({
             description:          row.description,
-            barcode:              null,
+            barcode:              row.barcode || null,
             quantity_damaged:     qty,
             unit_price:           price,
             estimated_value_lost: qty * price,
             reason:               row.reason || 'Other',
-            category:             null,
+            category:             row.category || null,
             notes:                row.notes || '',
           }),
         })

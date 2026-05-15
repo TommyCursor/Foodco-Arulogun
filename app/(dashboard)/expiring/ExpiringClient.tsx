@@ -163,13 +163,13 @@ export default function ExpiringClient({ items, sentNotifications }: Props) {
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({
             description:          row.description,
-            barcode:              null,
+            barcode:              row.barcode || null,
             quantity_damaged:     qty,
             unit_price:           price,
             estimated_value_lost: qty * price,
             reason:               'About to Expire',
             expiry_date:          row.expiry_date || null,
-            category:             null,
+            category:             row.category || null,
             notes:                row.notes || '',
           }),
         })

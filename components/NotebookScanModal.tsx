@@ -21,10 +21,12 @@ export type ScanSection = 'damage' | 'expiring' | 'discount'
 
 export interface ScanRow {
   key:            string
+  barcode:        string
   description:    string
   quantity:       number
   price:          number
   reason:         string
+  category:       string
   notes:          string
   expiry_date:    string
   original_price: number
@@ -46,10 +48,12 @@ function newKey() { return `row-${++rowCounter}` }
 function makeBlankRow(section: ScanSection): ScanRow {
   return {
     key:            newKey(),
+    barcode:        '',
     description:    '',
     quantity:       1,
     price:          0,
     reason:         section === 'damage' ? 'Pest damage' : '',
+    category:       '',
     notes:          '',
     expiry_date:    '',
     original_price: 0,
@@ -60,10 +64,12 @@ function makeBlankRow(section: ScanSection): ScanRow {
 function apiRowToScanRow(raw: Record<string, unknown>, section: ScanSection): ScanRow {
   return {
     key:            newKey(),
+    barcode:        String(raw.barcode       ?? ''),
     description:    String(raw.description   ?? ''),
     quantity:       Number(raw.quantity      ?? 1),
     price:          Number(raw.price         ?? 0),
     reason:         String(raw.reason        ?? (section === 'damage' ? 'Pest damage' : '')),
+    category:       String(raw.category      ?? ''),
     notes:          String(raw.notes         ?? ''),
     expiry_date:    String(raw.expiry_date   ?? ''),
     original_price: Number(raw.original_price ?? 0),
@@ -137,7 +143,7 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
       const data = await res.json()
       if (!res.ok) throw new Error(data.error ?? 'Analysis failed')
       const raw = Array.isArray(data.records) ? data.records as Record<string, unknown>[] : []
-      const extracted = raw.map(r => apiRowToScanRow(r, section))
+      const extracted = raw.map((r: Record<string, unknown>) => apiRowToScanRow(r, section))
       setRows(extracted.length ? extracted : [makeBlankRow(section)])
       setStep('verify')
     } catch (e: unknown) {
@@ -159,6 +165,21 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
   }
 
   function buildColumns(): ColumnsType<ScanRow> {
+    const barcodeCol: ColumnsType<ScanRow>[0] = {
+      title:     'Barcode / SKU',
+      dataIndex: 'barcode',
+      width:     150,
+      render: (v, r) => (
+        <Input
+          size="small"
+          value={v}
+          onChange={e => updateRow(r.key, 'barcode', e.target.value)}
+          placeholder="Barcode"
+          style={{ fontFamily: 'monospace' }}
+        />
+      ),
+    }
+
     const descCol: ColumnsType<ScanRow>[0] = {
       title:     'Description',
       dataIndex: 'description',
@@ -176,7 +197,7 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
     const qtyCol: ColumnsType<ScanRow>[0] = {
       title:     'Qty',
       dataIndex: 'quantity',
-      width:     80,
+      width:     75,
       render: (v, r) => (
         <InputNumber
           size="small"
@@ -184,6 +205,20 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
           value={v}
           onChange={val => updateRow(r.key, 'quantity', val ?? 0)}
           style={{ width: '100%' }}
+        />
+      ),
+    }
+
+    const categoryCol: ColumnsType<ScanRow>[0] = {
+      title:     'Department',
+      dataIndex: 'category',
+      width:     140,
+      render: (v, r) => (
+        <Input
+          size="small"
+          value={v}
+          onChange={e => updateRow(r.key, 'category', e.target.value)}
+          placeholder="Department"
         />
       ),
     }
@@ -208,6 +243,7 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
 
     if (section === 'damage') {
       return [
+        barcodeCol,
         descCol,
         qtyCol,
         {
@@ -228,20 +264,21 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
         {
           title:     'Reason',
           dataIndex: 'reason',
-          width:     140,
+          width:     130,
           render: (v, r) => (
             <Input
               size="small"
               value={v}
               onChange={e => updateRow(r.key, 'reason', e.target.value)}
-              placeholder="Damage reason"
+              placeholder="e.g. Broken"
             />
           ),
         },
+        categoryCol,
         {
           title:     'Notes',
           dataIndex: 'notes',
-          width:     130,
+          width:     120,
           render: (v, r) => (
             <Input
               size="small"
@@ -257,6 +294,7 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
 
     if (section === 'expiring') {
       return [
+        barcodeCol,
         descCol,
         qtyCol,
         {
@@ -277,7 +315,7 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
         {
           title:     'Expiry Date',
           dataIndex: 'expiry_date',
-          width:     145,
+          width:     140,
           render: (v, r) => (
             <DatePicker
               size="small"
@@ -288,10 +326,11 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
             />
           ),
         },
+        categoryCol,
         {
           title:     'Notes',
           dataIndex: 'notes',
-          width:     130,
+          width:     120,
           render: (v, r) => (
             <Input
               size="small"
@@ -307,12 +346,13 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
 
     // discount
     return [
+      barcodeCol,
       descCol,
       qtyCol,
       {
         title:     'Original Price (₦)',
         dataIndex: 'original_price',
-        width:     150,
+        width:     145,
         render: (v, r) => (
           <InputNumber
             size="small"
@@ -325,7 +365,7 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
         ),
       },
       {
-        title:     'Discount Name',
+        title:     'Discount Reason',
         dataIndex: 'name',
         width:     140,
         render: (v, r) => (
@@ -333,10 +373,11 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
             size="small"
             value={v}
             onChange={e => updateRow(r.key, 'name', e.target.value)}
-            placeholder="e.g. Flash Sale"
+            placeholder="e.g. Clearance"
           />
         ),
       },
+      categoryCol,
       deleteCol,
     ]
   }

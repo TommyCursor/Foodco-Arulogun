@@ -229,11 +229,11 @@ export default function DiscountsClient({ discounts, eligibleBatches }: Props) {
           headers: { 'Content-Type': 'application/json' },
           body:    JSON.stringify({
             description:    row.description,
-            barcode:        null,
+            barcode:        row.barcode || null,
             qty:            row.quantity,
             name:           row.name || 'Manual Discount',
             original_price: row.original_price,
-            category:       null,
+            category:       row.category || null,
           }),
         })
         if (!res.ok) failed++
