@@ -40,7 +40,9 @@ const SECTION_LABELS: Record<ScanSection, string> = {
 }
 
 const ACCEPTED = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
-const MAX_MB   = 20
+const MAX_MB   = 15   // file-picker guard
+const MAX_DIM  = 1600 // max pixel dimension after resize
+const JPEG_Q   = 0.85 // compression quality
 
 let rowCounter = 0
 function newKey() { return `row-${++rowCounter}` }
@@ -121,10 +123,30 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
     const reader = new FileReader()
     reader.onload = e => {
       const dataUrl = e.target?.result as string
-      setImagePreview(dataUrl)
-      setImageB64(dataUrl.split(',')[1])
-      setMimeType(f.type as typeof mimeType)
-      setError(null)
+      // Resize + compress via canvas so payload stays within Vercel's 4.5 MB body limit
+      const img = new window.Image()
+      img.onload = () => {
+        let { width, height } = img
+        if (width > MAX_DIM || height > MAX_DIM) {
+          if (width >= height) {
+            height = Math.round((height / width) * MAX_DIM)
+            width  = MAX_DIM
+          } else {
+            width  = Math.round((width / height) * MAX_DIM)
+            height = MAX_DIM
+          }
+        }
+        const canvas = document.createElement('canvas')
+        canvas.width  = width
+        canvas.height = height
+        canvas.getContext('2d')!.drawImage(img, 0, 0, width, height)
+        const compressed = canvas.toDataURL('image/jpeg', JPEG_Q)
+        setImagePreview(compressed)
+        setImageB64(compressed.split(',')[1])
+        setMimeType('image/jpeg')
+        setError(null)
+      }
+      img.src = dataUrl
     }
     reader.readAsDataURL(f)
     return false
@@ -140,7 +162,17 @@ export default function NotebookScanModal({ open, section, onClose, onConfirm }:
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ image: imageB64, mimeType, section }),
       })
-      const data = await res.json()
+      let data: { records?: unknown[]; error?: string }
+      try {
+        data = await res.json()
+      } catch {
+        // Vercel returns plain text for 413 (Request Entity Too Large)
+        throw new Error(
+          res.status === 413
+            ? 'Image is too large to process. Please try a smaller or lower-resolution photo.'
+            : `Server error (${res.status}) — please try again.`
+        )
+      }
       if (!res.ok) throw new Error(data.error ?? 'Analysis failed')
       const raw = Array.isArray(data.records) ? data.records as Record<string, unknown>[] : []
       const extracted = raw.map((r: Record<string, unknown>) => apiRowToScanRow(r, section))
