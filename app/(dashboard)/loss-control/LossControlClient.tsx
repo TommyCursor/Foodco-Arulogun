@@ -4,9 +4,8 @@ import { useState, useMemo, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Table, Tag, Button, Input, Select, AutoComplete, Card, Statistic, Row, Col,
-  Typography, Space, Modal, Alert, Empty, Checkbox, Form, App,
+  Typography, Space, Modal, Alert, Empty, App, InputNumber,
 } from 'antd'
-import { useProfile } from '@/lib/hooks/useProfile'
 import type { ColumnsType } from 'antd/es/table'
 import type { TableRowSelection } from 'antd/es/table/interface'
 import {
@@ -24,6 +23,11 @@ import EmptyState from '@/components/EmptyState'
 const { Title, Text } = Typography
 
 const LS_KEY = 'lc_email_list'
+
+const MONTHS = [
+  'January','February','March','April','May','June',
+  'July','August','September','October','November','December',
+]
 
 const DEFAULT_EMAILS = [
   'ayotomiwa.sop@gmail.com',
@@ -58,17 +62,9 @@ interface Submission {
 
 interface Props { items: InventoryItem[] }
 
-const ALLOWED_ROLES = [
-  'grocery_team_lead', 'toiletries_team_lead', 'cashier_team_lead', '3f_team_lead',
-  'supervisor', 'manager', 'admin',
-]
-
 export default function LossControlClient({ items }: Props) {
   const router                              = useRouter()
   const { notification }                    = App.useApp()
-  const { profile }                         = useProfile()
-  const roleName                            = profile?.role_name ?? ''
-  const canSendToLC                         = ALLOWED_ROLES.includes(roleName)
   const [selectedIds,   setSelectedIds]     = useState<string[]>([])
   const [sending,       setSending]         = useState(false)
   const [previewOpen,   setPreviewOpen]     = useState(false)
@@ -76,6 +72,10 @@ export default function LossControlClient({ items }: Props) {
   const [ccEmails,      setCcEmails]        = useState<string[]>([])
   const [emailError,    setEmailError]      = useState('')
   const [savedEmails,   setSavedEmails]     = useState<string[]>([])
+  // Month/year prompt for expiry reports
+  const [monthPromptOpen, setMonthPromptOpen] = useState(false)
+  const [reportMonth, setReportMonth]         = useState<string>(MONTHS[new Date().getMonth()])
+  const [reportYear,  setReportYear]          = useState<number>(new Date().getFullYear())
 
   // History state
   const [history,          setHistory]          = useState<Submission[]>([])
@@ -227,6 +227,7 @@ export default function LossControlClient({ items }: Props) {
 
     setSending(true)
     try {
+      const hasExpiry = selectedItems.some(i => i.pipeline_stage === 'expiry_reported')
       const res = await fetch('/api/loss-control', {
         method:  'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -234,6 +235,8 @@ export default function LossControlClient({ items }: Props) {
           item_ids:        selectedIds,
           recipient_email: recipientEmail.trim(),
           cc_emails:       ccEmails,
+          report_month:    hasExpiry ? reportMonth : undefined,
+          report_year:     hasExpiry ? reportYear  : undefined,
         }),
       })
       if (!res.ok) {
@@ -420,17 +423,15 @@ export default function LossControlClient({ items }: Props) {
               icon={<SendOutlined />}
               disabled={selectedIds.length === 0}
               onClick={() => {
-                if (!canSendToLC) {
-                  Modal.error({
-                    title:   'Access Denied',
-                    content: 'Only Team Leads, Supervisors, and Managers are authorised to send items to Loss Control. Please contact your team lead to action this.',
-                    okText:  'Understood',
-                    centered: true,
-                  })
-                  return
+                const hasExpiry = selectedItems.some(i => i.pipeline_stage === 'expiry_reported')
+                if (hasExpiry) {
+                  setReportMonth(MONTHS[new Date().getMonth()])
+                  setReportYear(new Date().getFullYear())
+                  setMonthPromptOpen(true)
+                } else {
+                  setEmailError('')
+                  setPreviewOpen(true)
                 }
-                setEmailError('')
-                setPreviewOpen(true)
               }}
               style={{ background: BRAND.green }}
             >
@@ -510,6 +511,70 @@ export default function LossControlClient({ items }: Props) {
         )}
       </Card>
 
+      {/* ── Month/Year Prompt (expiry reports only) ── */}
+      <Modal
+        open={monthPromptOpen}
+        onCancel={() => setMonthPromptOpen(false)}
+        title="Which month is this report for?"
+        centered
+        footer={
+          <Space>
+            <Button onClick={() => setMonthPromptOpen(false)}>Cancel</Button>
+            <Button
+              type="primary"
+              style={{ background: BRAND.green }}
+              onClick={() => {
+                setMonthPromptOpen(false)
+                setEmailError('')
+                setPreviewOpen(true)
+              }}
+            >
+              Continue
+            </Button>
+          </Space>
+        }
+        width={380}
+      >
+        <Text type="secondary" style={{ display: 'block', marginBottom: 16, fontSize: 13 }}>
+          This will appear in the email subject and body sent to Loss Control.
+        </Text>
+        <Row gutter={12}>
+          <Col span={14}>
+            <div style={{ marginBottom: 4 }}>
+              <Text strong style={{ fontSize: 13 }}>Month</Text>
+            </div>
+            <Select
+              value={reportMonth}
+              onChange={setReportMonth}
+              style={{ width: '100%' }}
+            >
+              {MONTHS.map(m => (
+                <Select.Option key={m} value={m}>{m}</Select.Option>
+              ))}
+            </Select>
+          </Col>
+          <Col span={10}>
+            <div style={{ marginBottom: 4 }}>
+              <Text strong style={{ fontSize: 13 }}>Year</Text>
+            </div>
+            <InputNumber
+              value={reportYear}
+              onChange={v => setReportYear(v ?? new Date().getFullYear())}
+              min={2020}
+              max={2099}
+              style={{ width: '100%' }}
+              controls={false}
+            />
+          </Col>
+        </Row>
+        <div style={{
+          marginTop: 16, padding: '10px 14px', background: '#f6fbf6',
+          borderRadius: 8, border: '1px solid #c8e6c9', fontSize: 13, color: '#444',
+        }}>
+          Email will read: <em>"…about to expire for the month of <strong>{reportMonth} {reportYear}</strong>"</em>
+        </div>
+      </Modal>
+
       {/* ── Send Preview Modal ── */}
       <Modal
         open={previewOpen}
@@ -539,7 +604,11 @@ export default function LossControlClient({ items }: Props) {
         <Alert
           type="info"
           showIcon
-          message={`${selectedIds.length} item(s) will be compiled into an Excel report and emailed to Loss Control.`}
+          message={
+            selectedItems.some(i => i.pipeline_stage === 'expiry_reported')
+              ? `${selectedIds.length} item(s) will be compiled into an Excel report and emailed to Loss Control for ${reportMonth} ${reportYear}.`
+              : `${selectedIds.length} item(s) will be compiled into an Excel report and emailed to Loss Control.`
+          }
           style={{ marginBottom: 16, borderRadius: 8 }}
         />
 

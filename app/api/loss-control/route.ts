@@ -26,35 +26,18 @@ export async function GET() {
   return NextResponse.json(data ?? [])
 }
 
-const LC_ALLOWED_ROLES = [
-  'grocery_team_lead', 'toiletries_team_lead', 'cashier_team_lead', '3f_team_lead',
-  'supervisor', 'manager', 'admin',
-]
-
 // POST /api/loss-control — generate Excel, email Loss Control, update stages
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  // Role check — only team leads and above may send to loss control
   const admin = createAdminClient()
-  const { data: profile } = await admin
-    .from('profiles')
-    .select('role:roles(name)')
-    .eq('id', user.id)
-    .single()
-  const userRole = (profile?.role as any)?.name ?? ''
-  if (!LC_ALLOWED_ROLES.includes(userRole)) {
-    return NextResponse.json(
-      { error: 'Only Team Leads, Supervisors, and Managers can send items to Loss Control.' },
-      { status: 403 },
-    )
-  }
-
-  const body = await req.json()
+  const body  = await req.json()
   // body.item_ids: string[] — IDs of items to send
   // body.recipient_email: string — Loss Control email
+  // body.report_month?: string — e.g. "August" (for expiry reports)
+  // body.report_year?: number  — e.g. 2026 (for expiry reports)
 
   // Fetch full item details for the report (include reason sources)
   const { data: items, error: fetchErr } = await admin
@@ -80,30 +63,35 @@ export async function POST(req: NextRequest) {
   }
 
   // Determine report type from items
-  const stageLabel: Record<string, string> = {
-    damage_reported:   'Damage',
-    discount_reported: 'Discount',
-    expiry_reported:   'About to Expire',
-  }
-  const stageSubject: Record<string, string> = {
-    damage_reported:   'DAMAGE REPORT',
-    discount_reported: 'DISCOUNT REPORT',
-    expiry_reported:   'ABOUT TO EXPIRE REPORT',
-  }
-
-  const stages      = [...new Set(items.map((i: any) => i.pipeline_stage))]
-  const reportLabel   = stages.length === 1 ? (stageLabel[stages[0]]   ?? 'Loss Control') : 'Loss Control'
-  const emailSubject  = stages.length === 1 ? (stageSubject[stages[0]] ?? 'LOSS CONTROL REPORT') : 'LOSS CONTROL REPORT'
+  const stages = [...new Set(items.map((i: any) => i.pipeline_stage))]
+  const isExpiry   = stages.length === 1 && stages[0] === 'expiry_reported'
+  const isDamage   = stages.length === 1 && stages[0] === 'damage_reported'
+  const isDiscount = stages.length === 1 && stages[0] === 'discount_reported'
 
   const recipientEmail = body.recipient_email
   const ccEmails: string[] = (body.cc_emails ?? []).filter((e: string) => e.trim())
+  const reportMonth: string = body.report_month ?? ''
+  const reportYear: number  = body.report_year  ?? new Date().getFullYear()
 
-  const plainText = `Dear Loss Control,
+  const todayLabel = new Date().toLocaleDateString('en-NG', { day: 'numeric', month: 'long', year: 'numeric' })
+  const monthPeriod = reportMonth && reportYear ? `${reportMonth} ${reportYear}` : todayLabel
 
-Kindly find the attached file (${reportLabel}).
+  let emailSubject: string
+  let plainText: string
 
-Regards,
-Foodco Arulogun`
+  if (isExpiry) {
+    emailSubject = `About to Expire Report — ${monthPeriod}`
+    plainText    = `Dear Loss Control,\n\nKindly find the attached about to expire for the month of ${monthPeriod}.\n\nRegards,\nFoodco Arulogun`
+  } else if (isDamage) {
+    emailSubject = `Damage Report — ${todayLabel}`
+    plainText    = `Dear Loss Control,\n\nKindly find the attached damage report dated ${todayLabel}.\n\nRegards,\nFoodco Arulogun`
+  } else if (isDiscount) {
+    emailSubject = `Discount Report — ${todayLabel}`
+    plainText    = `Dear Loss Control,\n\nKindly find the attached discount report dated ${todayLabel}.\n\nRegards,\nFoodco Arulogun`
+  } else {
+    emailSubject = `Loss Control Report — ${todayLabel}`
+    plainText    = `Dear Loss Control,\n\nKindly find the attached loss control report dated ${todayLabel}.\n\nRegards,\nFoodco Arulogun`
+  }
 
   // Build sheet rows — damage items only
   const dateLogged = new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })
